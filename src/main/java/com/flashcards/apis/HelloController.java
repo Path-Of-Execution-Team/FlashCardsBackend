@@ -1,4 +1,4 @@
-package com.flashcards.demo.apis;
+package com.flashcards.apis;
 
 import java.util.Locale;
 

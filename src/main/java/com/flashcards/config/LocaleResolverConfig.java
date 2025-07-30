@@ -1,4 +1,4 @@
-package com.flashcards.demo.config;
+package com.flashcards.config;
 
 import java.util.Locale;
 
