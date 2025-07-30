@@ -1,4 +1,4 @@
-package config;
+package com.flashcards.demo.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
