@@ -18,7 +18,6 @@ public class HelloController {
 
     @GetMapping("/hello")
     public String helloWorld(Locale locale) {
-        System.out.println(locale);
         return messageSource.getMessage("hello.world", null, locale);
     }
 
