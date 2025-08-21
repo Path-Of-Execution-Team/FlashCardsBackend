@@ -1,6 +1,6 @@
 package com.flashcards.web.api.errors;
 
-import com.flashcards.domain.exceptions.RegistrationException;
+import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -23,8 +23,8 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-    @ExceptionHandler(RegistrationException.class)
-    public ResponseEntity<ApiError> handleEmailAlreadyTaken(RegistrationException ex, HttpServletRequest req) {
+    @ExceptionHandler(UnprocessableEntityException.class)
+    public ResponseEntity<ApiError> handleEmailAlreadyTaken(UnprocessableEntityException ex, HttpServletRequest req) {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getCode(), ex.getMessage(), req);
     }
 

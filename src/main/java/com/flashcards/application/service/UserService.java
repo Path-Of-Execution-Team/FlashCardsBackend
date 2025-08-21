@@ -2,7 +2,7 @@ package com.flashcards.application.service;
 
 import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
-import com.flashcards.domain.exceptions.RegistrationException;
+import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import com.flashcards.domain.model.User;
 import com.flashcards.infrastructure.persistence.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,13 +40,13 @@ public class UserService {
 
     private void validateUserCreationDto(UserCreationDto userCreationDto) {
         if (userRepository.existsByUsername(userCreationDto.username())) {
-            throw new RegistrationException("Username already exists", "USER_ALREADY_EXISTS");
+            throw new UnprocessableEntityException("Username already exists", "USER_ALREADY_EXISTS");
         }
         if (userRepository.existsByEmail(userCreationDto.email())) {
-            throw new RegistrationException("Email already exists", "EMAIL_ALREADY_TAKEN");
+            throw new UnprocessableEntityException("Email already exists", "EMAIL_ALREADY_TAKEN");
         }
         if (!strongPassword(userCreationDto.passwordHash())) {
-            throw new RegistrationException("Password should be at least 8 characters, at most 64 characters," +
+            throw new UnprocessableEntityException("Password should be at least 8 characters, at most 64 characters," +
                 "contains at least one upper and lower case and at least one special character", "WEAK_PASSWORD");
         }
     }
