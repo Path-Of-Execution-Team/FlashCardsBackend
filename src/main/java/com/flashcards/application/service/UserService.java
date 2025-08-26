@@ -46,7 +46,7 @@ public class UserService {
             throw new UnprocessableEntityException("Email already exists", "EMAIL_ALREADY_TAKEN");
         }
         if (!strongPassword(userCreationDto.passwordHash())) {
-            throw new UnprocessableEntityException("Password should be at least 8 characters, at most 64 characters," +
+            throw new UnprocessableEntityException("Password should be at least 8 characters, at most 64 characters, " +
                 "contains at least one upper and lower case and at least one special character", "WEAK_PASSWORD");
         }
     }
