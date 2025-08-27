@@ -1,11 +1,11 @@
-package com.flashcards.apis;
-
-import java.util.Locale;
+package com.flashcards.web.api;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Locale;
 
 @RestController
 public class HelloController {
@@ -32,5 +32,4 @@ public class HelloController {
         System.out.println("Default JVM Locale = " + Locale.getDefault());
         return "Check logs";
     }
-
 }
