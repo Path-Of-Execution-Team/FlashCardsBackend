@@ -9,16 +9,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/auth/register")
-public class RegisterController {
+@RequestMapping("/api/auth")
+public class AuthController {
 
     private final UserService userService;
 
-    public RegisterController(UserService userService) {
+    public AuthController(UserService userService) {
         this.userService = userService;
     }
 
-    @PostMapping
+    @PostMapping("register")
     public UserDto createUser(@RequestBody UserCreationDto userCreationDto) {
         return userService.createUser(userCreationDto);
     }
