@@ -1,7 +1,9 @@
 package com.flashcards.web.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import com.flashcards.domain.model.User;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -103,7 +105,11 @@ public class RegisterControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(conflictUser))
             )
-            .andExpect(MockMvcResultMatchers.status().is(422));
+            .andExpect(MockMvcResultMatchers.status().is(422))
+            .andExpect(result ->
+                Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
+            .andExpect(result ->
+                Assertions.assertTrue(result.getResolvedException().getMessage().contains("Username already exists")));
     }
 
     @Test
@@ -128,7 +134,11 @@ public class RegisterControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(conflictUser))
             )
-            .andExpect(MockMvcResultMatchers.status().is(422));
+            .andExpect(MockMvcResultMatchers.status().is(422))
+            .andExpect(result ->
+                Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
+            .andExpect(result ->
+                Assertions.assertTrue(result.getResolvedException().getMessage().contains("Email already exists")));
     }
 
     @Test
@@ -143,7 +153,12 @@ public class RegisterControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(user))
             )
-            .andExpect(MockMvcResultMatchers.status().is(422));
+            .andExpect(MockMvcResultMatchers.status().is(422))
+            .andExpect(result ->
+                Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
+            .andExpect(result ->
+                Assertions.assertTrue(result.getResolvedException().getMessage().contains("Password should be at least 8 characters, at most 64 characters, " +
+                    "contains at least one upper and lower case and at least one special character")));
     }
 
     @Test
