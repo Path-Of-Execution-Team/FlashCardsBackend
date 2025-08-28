@@ -5,21 +5,27 @@ import com.flashcards.application.dto.UserDto;
 import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import com.flashcards.domain.model.User;
 import com.flashcards.infrastructure.persistence.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
 import java.util.Optional;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+    private final MessageSource messageSource;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       MessageSource messageSource) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.messageSource = messageSource;
     }
 
     public boolean isHealthy() {
@@ -39,15 +45,21 @@ public class UserService {
     }
 
     private void validateUserCreationDto(UserCreationDto userCreationDto) {
+        Locale locale = LocaleContextHolder.getLocale();
         if (userRepository.existsByUsername(userCreationDto.username())) {
-            throw new UnprocessableEntityException("Username already exists", "USER_ALREADY_EXISTS");
+            throw new UnprocessableEntityException(
+                messageSource.getMessage("user.already.exists", null, locale),
+                "USER_ALREADY_EXISTS");
         }
         if (userRepository.existsByEmail(userCreationDto.email())) {
-            throw new UnprocessableEntityException("Email already exists", "EMAIL_ALREADY_TAKEN");
+            throw new UnprocessableEntityException(
+                messageSource.getMessage("email.already.taken", null, locale),
+                "EMAIL_ALREADY_TAKEN");
         }
         if (!strongPassword(userCreationDto.passwordHash())) {
-            throw new UnprocessableEntityException("Password should be at least 8 characters, at most 64 characters, " +
-                "contains at least one upper and lower case and at least one special character", "WEAK_PASSWORD");
+            throw new UnprocessableEntityException(
+                messageSource.getMessage("weak.password", null, locale),
+                "WEAK_PASSWORD");
         }
     }
 
