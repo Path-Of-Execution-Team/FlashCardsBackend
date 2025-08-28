@@ -5,6 +5,10 @@ on:
   pull_request: { branches: [main, dev] }
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   pipeline:
     uses: Path-Of-Execution-Team/FlashCards/.github/workflows/reusable-build-deploy.yml@main
@@ -19,6 +23,6 @@ jobs:
       build_context: .
       dockerfile: ./Dockerfile
       test_command: "mvn -B -ntp test"
-      deploy_mode: direct
+      deploy_mode: registry
       platform: linux/arm64
     secrets: inherit
