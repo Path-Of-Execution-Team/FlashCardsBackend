@@ -2,6 +2,7 @@ package com.flashcards.application.service;
 
 import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
+import com.flashcards.application.mapper.UserMapper;
 import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import com.flashcards.domain.model.User;
 import com.flashcards.infrastructure.persistence.UserRepository;
@@ -19,13 +20,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final MessageSource messageSource;
+    private final UserMapper userMapper;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       MessageSource messageSource) {
+                       MessageSource messageSource,
+                       UserMapper userMapper) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.messageSource = messageSource;
+        this.userMapper = userMapper;
     }
 
     public boolean isHealthy() {
@@ -35,7 +39,7 @@ public class UserService {
     @Transactional
     public UserDto createUser(UserCreationDto userCreationDto) {
         validateUserCreationDto(userCreationDto);
-        User user = mapUserCreationDtoToUser(userCreationDto);
+        User user = userMapper.toEntity(userCreationDto);
         userRepository.save(user);
         return new UserDto(user.getUsername(), user.getEmail());
     }
@@ -56,19 +60,11 @@ public class UserService {
                 messageSource.getMessage("email.already.taken", null, locale),
                 "EMAIL_ALREADY_TAKEN");
         }
-        if (!strongPassword(userCreationDto.passwordHash())) {
+        if (!strongPassword(userCreationDto.password())) {
             throw new UnprocessableEntityException(
                 messageSource.getMessage("weak.password", null, locale),
                 "WEAK_PASSWORD");
         }
-    }
-
-    private User mapUserCreationDtoToUser(UserCreationDto createRequest) {
-        User user = new User();
-        user.setUsername(createRequest.username());
-        user.setEmail(createRequest.email());
-        user.setPasswordHash(passwordEncoder.encode(createRequest.passwordHash()));
-        return user;
     }
 
     private boolean strongPassword(String password) {
