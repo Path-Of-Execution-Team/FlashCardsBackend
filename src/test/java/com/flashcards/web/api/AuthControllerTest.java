@@ -6,8 +6,11 @@ import com.flashcards.domain.model.User;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @ActiveProfiles("test")
 public class AuthControllerTest {
 
@@ -25,6 +29,8 @@ public class AuthControllerTest {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private MessageSource messageSource;
 
     @Test
     void testCreateUser_ValidUser() throws Exception {
@@ -93,7 +99,7 @@ public class AuthControllerTest {
         conflictUser.setUsername("Puszmen12");
         conflictUser.setEmail("puszmen1234@gmail.com");
         conflictUser.setPasswordHash("Srterydfgxc7657*hgf");
-
+        String expectedMessage = messageSource.getMessage("user.already.exists", null, LocaleContextHolder.getLocale());
         mockMvc.perform(
             MockMvcRequestBuilders.post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -109,7 +115,7 @@ public class AuthControllerTest {
             .andExpect(result ->
                 Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
             .andExpect(result ->
-                Assertions.assertTrue(result.getResolvedException().getMessage().contains("Username already exists")));
+                Assertions.assertTrue(result.getResolvedException().getMessage().contains(expectedMessage)));
     }
 
     @Test
@@ -122,6 +128,7 @@ public class AuthControllerTest {
         conflictUser.setUsername("Puszmen13");
         conflictUser.setEmail("puszmen12@gmail.com");
         conflictUser.setPasswordHash("Srterydfgxc7657*hgf");
+        String expectedMessage = messageSource.getMessage("email.already.taken", null, LocaleContextHolder.getLocale());
 
         mockMvc.perform(
             MockMvcRequestBuilders.post("/api/auth/register")
@@ -138,7 +145,7 @@ public class AuthControllerTest {
             .andExpect(result ->
                 Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
             .andExpect(result ->
-                Assertions.assertTrue(result.getResolvedException().getMessage().contains("Email already exists")));
+                Assertions.assertTrue(result.getResolvedException().getMessage().contains(expectedMessage)));
     }
 
     @Test
@@ -147,6 +154,7 @@ public class AuthControllerTest {
         user.setUsername("Puszmen12");
         user.setEmail("puszmen12@gmail.com");
         user.setPasswordHash("qwerty");
+        String expectedMessage = messageSource.getMessage("weak.password", null, LocaleContextHolder.getLocale());
 
         mockMvc.perform(
                 MockMvcRequestBuilders.post("/api/auth/register")
@@ -157,8 +165,7 @@ public class AuthControllerTest {
             .andExpect(result ->
                 Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
             .andExpect(result ->
-                Assertions.assertTrue(result.getResolvedException().getMessage().contains("Password should be at least 8 characters, at most 64 characters, " +
-                    "contains at least one upper and lower case and at least one special character")));
+                Assertions.assertTrue(result.getResolvedException().getMessage().contains(expectedMessage)));
     }
 
     @Test

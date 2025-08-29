@@ -6,17 +6,24 @@ import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Transactional
 public class UserServiceTest {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    MessageSource messageSource;
 
     @Test
     void testValidUserCreationDto_ValidUser() throws Exception {
@@ -35,7 +42,9 @@ public class UserServiceTest {
         UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
             () -> userService.createUser(conflictUserCreationDto));
 
-        Assertions.assertEquals("Username already exists", exception.getMessage());
+        String expectedMessage = messageSource.getMessage("user.already.exists", null, LocaleContextHolder.getLocale());
+
+        Assertions.assertEquals(expectedMessage, exception.getMessage());
     }
 
     @Test
@@ -46,7 +55,8 @@ public class UserServiceTest {
         UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
             () -> userService.createUser(conflictUserCreationDto));
 
-        Assertions.assertEquals("Email already exists", exception.getMessage());
+        String expectedMessage = messageSource.getMessage("email.already.taken", null, LocaleContextHolder.getLocale());
+        Assertions.assertEquals(expectedMessage, exception.getMessage());
     }
 
     @Test
@@ -55,7 +65,7 @@ public class UserServiceTest {
         UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
             () -> userService.createUser(userCreationDto));
 
-        Assertions.assertEquals("Password should be at least 8 characters, at most 64 characters, " +
-            "contains at least one upper and lower case and at least one special character", exception.getMessage());
+        String expectedMessage = messageSource.getMessage("weak.password", null, LocaleContextHolder.getLocale());
+        Assertions.assertEquals(expectedMessage, exception.getMessage());
     }
 }
