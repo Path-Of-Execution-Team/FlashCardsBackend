@@ -40,6 +40,8 @@ public class UserService {
     public UserDto createUser(UserCreationDto userCreationDto) {
         validateUserCreationDto(userCreationDto);
         User user = userMapper.toEntity(userCreationDto);
+        String passwordHash = passwordEncoder.encode(user.getPasswordHash());
+        user.setPasswordHash(passwordHash);
         userRepository.save(user);
         return new UserDto(user.getUsername(), user.getEmail());
     }
@@ -69,6 +71,7 @@ public class UserService {
 
     private boolean strongPassword(String password) {
 
+        if (password == null) throw new UnprocessableEntityException("Password cannot be blank", "BLANK_PASSWORD");
         String specialChars = "!@#$%^&*()-=_+{};:'|/?.<>,";
         return password.length() >= 8
             && password.length() <= 64

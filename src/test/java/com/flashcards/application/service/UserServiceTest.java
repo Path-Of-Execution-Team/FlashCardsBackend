@@ -3,6 +3,7 @@ package com.flashcards.application.service;
 import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
 import com.flashcards.domain.exceptions.UnprocessableEntityException;
+import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ public class UserServiceTest {
     MessageSource messageSource;
 
     @Test
-    void testValidUserCreationDto_ValidUser() throws Exception {
+    void testCreateUser_ValidUser() throws Exception {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Sdgdregd123%");
         UserDto userDto = new UserDto("Puszmen12", "puszmen12@gmail.com");
 
@@ -35,7 +36,7 @@ public class UserServiceTest {
     }
 
     @Test
-    void testValidUserCreationDto_UsernameExists() throws Exception {
+    void testCreateUser_UsernameExists() throws Exception {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Sdgdregd123%");
         userService.createUser(userCreationDto);
         UserCreationDto conflictUserCreationDto = new UserCreationDto("Puszmen12", "puszmen123@gmail.com", "Sdgdregd123%");
@@ -48,7 +49,7 @@ public class UserServiceTest {
     }
 
     @Test
-    void testValidUserCreationDto_EmailExists() throws Exception {
+    void testCreateUser_EmailExists() throws Exception {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Sdgdregd123%");
         userService.createUser(userCreationDto);
         UserCreationDto conflictUserCreationDto = new UserCreationDto("Puszmen123", "puszmen12@gmail.com", "Sdgdregd123%");
@@ -60,12 +61,35 @@ public class UserServiceTest {
     }
 
     @Test
-    void testValidUserCreationDto_WeakPassword() throws Exception {
+    void testCreateUser_WeakPassword() throws Exception {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "qwerty");
         UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
             () -> userService.createUser(userCreationDto));
 
         String expectedMessage = messageSource.getMessage("weak.password", null, LocaleContextHolder.getLocale());
         Assertions.assertEquals(expectedMessage, exception.getMessage());
+    }
+
+    @Test
+    void testCreateUser_NullUsername() throws Exception {
+        UserCreationDto userCreationDto = new UserCreationDto(null, "puszmen12@gmail.com", "Sdgdregd123%");
+
+        Assertions.assertThrows(ConstraintViolationException.class,
+            () -> userService.createUser(userCreationDto));
+    }
+
+    @Test
+    void testCreateUser_NullEmail() throws Exception {
+        UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", null, "Sdgdregd123%");
+
+        Assertions.assertThrows(ConstraintViolationException.class,
+            () -> userService.createUser(userCreationDto));
+    }
+
+    @Test
+    void testCreateUser_NullPassword() throws Exception {
+        UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", null);
+        Assertions.assertThrows(UnprocessableEntityException.class,
+            () -> userService.createUser(userCreationDto));
     }
 }
