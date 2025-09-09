@@ -2,7 +2,6 @@ package com.flashcards.application.service;
 
 import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
-import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Assertions;
@@ -46,12 +45,14 @@ public class UserServiceTest {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Sdgdregd123%");
         userService.createUser(userCreationDto);
         UserCreationDto conflictUserCreationDto = new UserCreationDto("Puszmen12", "puszmen123@gmail.com", "Sdgdregd123%");
-        UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
-            () -> userService.createUser(conflictUserCreationDto));
+        var violations = validator.validate(conflictUserCreationDto);
 
-        String expectedMessage = messageSource.getMessage("user.already.exists", null, LocaleContextHolder.getLocale());
+        String expected = messageSource.getMessage("user.already.exists", null, LocaleContextHolder.getLocale());
 
-        Assertions.assertEquals(expectedMessage, exception.getMessage());
+        assertThat(violations).anySatisfy(v -> {
+            assertThat(v.getPropertyPath().toString()).isEqualTo("username");
+            assertThat(v.getMessage()).isEqualTo(expected);
+        });
     }
 
     @Test

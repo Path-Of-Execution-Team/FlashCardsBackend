@@ -30,7 +30,7 @@ public class UserCreationValidator implements ConstraintValidator<ValidUserCreat
         boolean ok = true;
         if (userRepository.existsByUsername(userCreationDto.username())) {
             ctx.disableDefaultConstraintViolation();
-            ctx.buildConstraintViolationWithTemplate(messageSource.getMessage("username.already.exists", null, locale))
+            ctx.buildConstraintViolationWithTemplate(messageSource.getMessage("user.already.exists", null, locale))
                 .addPropertyNode("username").addConstraintViolation();
             ok = false;
         }
