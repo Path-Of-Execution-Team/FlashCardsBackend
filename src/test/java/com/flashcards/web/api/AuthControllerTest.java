@@ -2,8 +2,6 @@ package com.flashcards.web.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashcards.application.dto.UserCreationDto;
-import com.flashcards.domain.exceptions.UnprocessableEntityException;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -53,7 +51,7 @@ public class AuthControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(user))
             )
-            .andExpect(MockMvcResultMatchers.status().is(500));
+            .andExpect(MockMvcResultMatchers.status().is(400));
     }
 
     @Test
@@ -66,10 +64,6 @@ public class AuthControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(user))
             )
-            .andExpect(MockMvcResultMatchers.status().is(422))
-            .andExpect(result ->
-                Assertions.assertInstanceOf(UnprocessableEntityException.class, result.getResolvedException()))
-            .andExpect(result ->
-                Assertions.assertTrue(result.getResolvedException().getMessage().contains(expectedMessage)));
+            .andExpect(MockMvcResultMatchers.status().is(400));
     }
 }

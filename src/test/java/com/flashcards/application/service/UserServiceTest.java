@@ -4,6 +4,7 @@ import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
 import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,8 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -25,6 +28,9 @@ public class UserServiceTest {
 
     @Autowired
     MessageSource messageSource;
+
+    @Autowired
+    Validator validator;
 
     @Test
     void testCreateUser_ValidUser() throws Exception {
@@ -53,21 +59,26 @@ public class UserServiceTest {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Sdgdregd123%");
         userService.createUser(userCreationDto);
         UserCreationDto conflictUserCreationDto = new UserCreationDto("Puszmen123", "puszmen12@gmail.com", "Sdgdregd123%");
-        UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
-            () -> userService.createUser(conflictUserCreationDto));
+        var violations = validator.validate(conflictUserCreationDto);
 
-        String expectedMessage = messageSource.getMessage("email.already.taken", null, LocaleContextHolder.getLocale());
-        Assertions.assertEquals(expectedMessage, exception.getMessage());
+        String expected = messageSource.getMessage("email.already.taken", null, LocaleContextHolder.getLocale());
+
+        assertThat(violations).anySatisfy(v -> {
+            assertThat(v.getPropertyPath().toString()).isEqualTo("email");
+            assertThat(v.getMessage()).isEqualTo(expected);
+        });
     }
 
     @Test
     void testCreateUser_WeakPassword() throws Exception {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "qwerty");
-        UnprocessableEntityException exception = Assertions.assertThrows(UnprocessableEntityException.class,
-            () -> userService.createUser(userCreationDto));
+        var violations = validator.validate(userCreationDto);
 
-        String expectedMessage = messageSource.getMessage("weak.password", null, LocaleContextHolder.getLocale());
-        Assertions.assertEquals(expectedMessage, exception.getMessage());
+        String expected = messageSource.getMessage("weak.password", null, LocaleContextHolder.getLocale());
+        assertThat(violations).anySatisfy(v -> {
+            assertThat(v.getPropertyPath().toString()).isEqualTo("password");
+            assertThat(v.getMessage()).isEqualTo(expected);
+        });
     }
 
     @Test
@@ -89,7 +100,7 @@ public class UserServiceTest {
     @Test
     void testCreateUser_NullPassword() throws Exception {
         UserCreationDto userCreationDto = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", null);
-        Assertions.assertThrows(UnprocessableEntityException.class,
+        Assertions.assertThrows(ConstraintViolationException.class,
             () -> userService.createUser(userCreationDto));
     }
 }
