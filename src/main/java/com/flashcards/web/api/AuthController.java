@@ -3,6 +3,7 @@ package com.flashcards.web.api;
 import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
 import com.flashcards.application.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +20,7 @@ public class AuthController {
     }
 
     @PostMapping("register")
-    public UserDto createUser(@RequestBody UserCreationDto userCreationDto) {
+    public UserDto createUser(@RequestBody @Valid UserCreationDto userCreationDto) {
         return userService.createUser(userCreationDto);
     }
 }

@@ -3,6 +3,8 @@ package com.flashcards.web.api.errors;
 import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Hidden
@@ -28,7 +31,7 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getCode(), ex.getMessage(), req);
     }
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
         BindingResult br = ex.getBindingResult();
@@ -44,6 +47,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest req) {
         log.debug("Bad JSON: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, "MALFORMED_JSON", "Malformed JSON body", req);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public Map<String, Object> handleParams(ConstraintViolationException ex) {
+        var errors = ex.getConstraintViolations().stream()
+            .collect(Collectors.toMap(v -> v.getPropertyPath().toString(),
+                ConstraintViolation::getMessage,
+                (a, b) -> a));
+        return Map.of("code", "VALIDATION_ERROR", "errors", errors);
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

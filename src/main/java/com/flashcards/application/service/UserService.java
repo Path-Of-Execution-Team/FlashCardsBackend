@@ -3,32 +3,28 @@ package com.flashcards.application.service;
 import com.flashcards.application.dto.UserCreationDto;
 import com.flashcards.application.dto.UserDto;
 import com.flashcards.application.mapper.UserMapper;
-import com.flashcards.domain.exceptions.UnprocessableEntityException;
 import com.flashcards.domain.model.User;
 import com.flashcards.infrastructure.persistence.UserRepository;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
+import jakarta.validation.Valid;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
-import java.util.Locale;
 import java.util.Optional;
 
 @Service
+@Validated
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final MessageSource messageSource;
     private final UserMapper userMapper;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       MessageSource messageSource,
                        UserMapper userMapper) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.messageSource = messageSource;
         this.userMapper = userMapper;
     }
 
@@ -37,8 +33,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserDto createUser(UserCreationDto userCreationDto) {
-        validateUserCreationDto(userCreationDto);
+    public UserDto createUser(@Valid UserCreationDto userCreationDto) {
         User user = userMapper.toEntity(userCreationDto);
         String passwordHash = passwordEncoder.encode(user.getPasswordHash());
         user.setPasswordHash(passwordHash);
@@ -48,36 +43,5 @@ public class UserService {
 
     public Optional<User> getUser(int id) {
         return userRepository.findById(id);
-    }
-
-    private void validateUserCreationDto(UserCreationDto userCreationDto) {
-        Locale locale = LocaleContextHolder.getLocale();
-        if (userRepository.existsByUsername(userCreationDto.username())) {
-            throw new UnprocessableEntityException(
-                messageSource.getMessage("user.already.exists", null, locale),
-                "USER_ALREADY_EXISTS");
-        }
-        if (userRepository.existsByEmail(userCreationDto.email())) {
-            throw new UnprocessableEntityException(
-                messageSource.getMessage("email.already.taken", null, locale),
-                "EMAIL_ALREADY_TAKEN");
-        }
-        if (!strongPassword(userCreationDto.password())) {
-            throw new UnprocessableEntityException(
-                messageSource.getMessage("weak.password", null, locale),
-                "WEAK_PASSWORD");
-        }
-    }
-
-    private boolean strongPassword(String password) {
-
-        if (password == null) throw new UnprocessableEntityException("Password cannot be blank", "BLANK_PASSWORD");
-        String specialChars = "!@#$%^&*()-=_+{};:'|/?.<>,";
-        return password.length() >= 8
-            && password.length() <= 64
-            && password.chars().anyMatch(Character::isDigit)
-            && password.chars().anyMatch(Character::isLowerCase)
-            && password.chars().anyMatch(Character::isUpperCase)
-            && password.chars().anyMatch(c -> specialChars.indexOf(c) != -1);
     }
 }
