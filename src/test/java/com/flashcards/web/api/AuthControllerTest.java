@@ -1,6 +1,7 @@
 package com.flashcards.web.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashcards.application.dto.LoginUserDto;
 import com.flashcards.application.dto.UserCreationDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,5 +66,39 @@ public class AuthControllerTest {
                     .content(objectMapper.writeValueAsString(user))
             )
             .andExpect(MockMvcResultMatchers.status().is(400));
+    }
+
+    @Test
+    void testLoginUser_ValidUser() throws Exception {
+        var user = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
+        mockMvc.perform(
+            MockMvcRequestBuilders.post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(user))
+        );
+        var loginRequest = new LoginUserDto("Puszmen12", "Srterydfgxc7657*hgf");
+        mockMvc.perform(
+                MockMvcRequestBuilders.post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest))
+            )
+            .andExpect(MockMvcResultMatchers.status().is(200));
+    }
+
+    @Test
+    void testLoginUser_BadCredentials() throws Exception {
+        var user = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
+        mockMvc.perform(
+            MockMvcRequestBuilders.post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(user))
+        );
+        var loginRequest = new LoginUserDto("Pumen12", "Srterydfgxc7657*hgf");
+        mockMvc.perform(
+                MockMvcRequestBuilders.post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest))
+            )
+            .andExpect(MockMvcResultMatchers.status().is(403));
     }
 }
