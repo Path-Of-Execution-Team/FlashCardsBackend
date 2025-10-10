@@ -1,0 +1,38 @@
+name: CI (Backend)
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Test
+        run: mvn -B -ntp test
+
+  build_deploy:
+    needs: test
+    uses: Path-Of-Execution-Team/FlashCards/.github/workflows/reusable-build-deploy.yml@main
+    with:
+      image_name: ghcr.io/path-of-execution-team/flashcardsbackend
+      deployment_name: flashcards-backend
+      dockerfile: ./Dockerfile
+      build_context: .
+    secrets:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+    permissions:
+      contents: read
+      packages: write
