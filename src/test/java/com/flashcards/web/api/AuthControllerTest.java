@@ -13,9 +13,13 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,11 +40,11 @@ public class AuthControllerTest {
         var user = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
 
         mockMvc.perform(
-                MockMvcRequestBuilders.post("/api/auth/register")
+                post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(user))
             )
-            .andExpect(MockMvcResultMatchers.status().is(200));
+            .andExpect(status().is(200));
     }
 
     @Test
@@ -48,11 +52,11 @@ public class AuthControllerTest {
         var user = new UserCreationDto(null, "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
 
         mockMvc.perform(
-                MockMvcRequestBuilders.post("/api/auth/register")
+                post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(user))
             )
-            .andExpect(MockMvcResultMatchers.status().is(400));
+            .andExpect(status().is(400));
     }
 
     @Test
@@ -61,44 +65,50 @@ public class AuthControllerTest {
         String expectedMessage = messageSource.getMessage("weak.password", null, LocaleContextHolder.getLocale());
 
         mockMvc.perform(
-                MockMvcRequestBuilders.post("/api/auth/register")
+                post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(user))
             )
-            .andExpect(MockMvcResultMatchers.status().is(400));
+            .andExpect(status().is(400));
     }
 
     @Test
     void testLoginUser_ValidUser() throws Exception {
         var user = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
         mockMvc.perform(
-            MockMvcRequestBuilders.post("/api/auth/register")
+            post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(user))
         );
         var loginRequest = new LoginUserDto("Puszmen12", "Srterydfgxc7657*hgf");
         mockMvc.perform(
-                MockMvcRequestBuilders.post("/api/auth/login")
+                post("/api/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest))
             )
-            .andExpect(MockMvcResultMatchers.status().is(200));
+            .andExpect(status().is(200));
     }
 
     @Test
     void testLoginUser_BadCredentials() throws Exception {
-        var user = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
-        mockMvc.perform(
-            MockMvcRequestBuilders.post("/api/auth/register")
+        var newUser = new UserCreationDto("Puszmen13", "puszmen13@gmail.com", "Srterydfgxc7657*hgf");
+
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(user))
-        );
-        var loginRequest = new LoginUserDto("Pumen12", "Srterydfgxc7657*hgf");
-        mockMvc.perform(
-                MockMvcRequestBuilders.post("/api/auth/login")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(loginRequest))
-            )
-            .andExpect(MockMvcResultMatchers.status().is(403));
+                .content(objectMapper.writeValueAsString(newUser)))
+            .andExpect(status().isOk()); // lub .isOk()
+
+        // Act: błędny identyfikator (literówka)
+        var badLogin = new LoginUserDto("Pumen13", "Srterydfgxc7657*hgf");
+
+        MvcResult mvcResult = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(badLogin)))
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        // Assert: 401 + JSON z error
+        mockMvc.perform(asyncDispatch(mvcResult))
+            .andExpect(status().isForbidden());
     }
 }
