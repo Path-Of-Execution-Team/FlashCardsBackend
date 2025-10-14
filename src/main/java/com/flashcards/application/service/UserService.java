@@ -7,18 +7,19 @@ import com.flashcards.application.mapper.UserMapper;
 import com.flashcards.domain.model.User;
 import com.flashcards.infrastructure.persistence.UserRepository;
 import com.flashcards.infrastructure.security.JwtService;
-import jakarta.validation.Valid;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Validated
@@ -45,26 +46,30 @@ public class UserService {
         return userRepository.count() >= 0;
     }
 
-    @Transactional
-    public UserDto createUser(@Valid UserCreationDto userCreationDto) {
+    @Async
+    public CompletableFuture<UserDto> createUser(UserCreationDto userCreationDto) {
         User user = userMapper.toEntity(userCreationDto);
         String passwordHash = passwordEncoder.encode(user.getPasswordHash());
         user.setPasswordHash(passwordHash);
         userRepository.save(user);
-        return new UserDto(user.getUsername(), user.getEmail());
+        return CompletableFuture.completedFuture(new UserDto(user.getUsername(), user.getEmail()));
     }
 
-    public String loginUser(LoginUserDto loginUserDto) {
-
-        Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                loginUserDto.identifier(),
-                loginUserDto.password()
-            )
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        return jwtService.generateToken(userDetails);
+    @Async
+    public CompletableFuture<String> loginUser(LoginUserDto loginUserDto) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                    loginUserDto.identifier(),
+                    loginUserDto.password()
+                )
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            return CompletableFuture.completedFuture(jwtService.generateToken(userDetails));
+        } catch (AuthenticationException ex) {
+            return CompletableFuture.failedFuture(ex);
+        }
     }
 
     public Optional<User> getUser(int id) {

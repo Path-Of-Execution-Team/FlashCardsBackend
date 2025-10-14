@@ -8,9 +8,11 @@ import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 @Hidden
@@ -26,6 +29,20 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(CompletionException.class)
+    public ResponseEntity<?> handleCompletion(CompletionException ex, HttpServletRequest req) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof AuthenticationException ae) return handleAuth(ae, req);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .contentType(MediaType.TEXT_PLAIN)
+            .body("Login failed");
+    }
+
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuth(AuthenticationException ex, HttpServletRequest req) {
+        return build(HttpStatus.FORBIDDEN, "BAD_CREDENTIALS", ex.getMessage(), req);
+    }
 
     @ResponseStatus(HttpStatus.FORBIDDEN)
     @ExceptionHandler(BadCredentialsException.class)
