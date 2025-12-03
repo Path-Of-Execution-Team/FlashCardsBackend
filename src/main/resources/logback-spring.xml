@@ -1,5 +1,15 @@
 <configuration>
+    <springProperty
+            scope="context"
+            name="LOKI_URL"
+            source="LOKI_PUSH_URL"
+            defaultValue="http://localhost:3100/loki/api/v1/push"/>
 
+    <springProperty
+            scope="context"
+            name="APP_NAME"
+            source="spring.application.name"
+            defaultValue="spring-boot-app"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -9,10 +19,10 @@
 
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http>
-            <url>http://localhost:3100/loki/api/v1/push</url>
+            <url>${LOKI_URL}</url>
         </http>
         <labels>
-            app = spring-boot-app
+            app   = ${APP_NAME}
             level = %level
         </labels>
         <message>
