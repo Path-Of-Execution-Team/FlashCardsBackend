@@ -57,7 +57,7 @@ services:
       - POSTGRES_USER=flashcards_user
     ports:
       - '5432:5432'
-
+  
 networks:
   monitoring:
 

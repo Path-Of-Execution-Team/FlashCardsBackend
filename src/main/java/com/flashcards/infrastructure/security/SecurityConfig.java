@@ -4,6 +4,7 @@ import com.flashcards.application.service.CustomUserDetailsService;
 import com.flashcards.infrastructure.persistence.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -34,7 +35,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
             .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> {
+            })
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/").permitAll()
                 .requestMatchers("/hello", "/api/auth/**", "/swagger-ui/**").permitAll()
                 .anyRequest().authenticated()
             )

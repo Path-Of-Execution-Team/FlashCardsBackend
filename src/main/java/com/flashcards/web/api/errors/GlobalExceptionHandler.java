@@ -90,11 +90,11 @@ public class GlobalExceptionHandler {
         return Map.of("code", "VALIDATION_ERROR", "errors", errors);
     }
 
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleAny(Exception ex, HttpServletRequest req) {
         log.error("Unhandled exception", ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Something went wrong", req);
+        return build(HttpStatus.NOT_FOUND, "NOT_FOUND", "Something went wrong", req);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String code, String message, HttpServletRequest req) {
