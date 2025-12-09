@@ -37,7 +37,7 @@ public class AuthControllerTest {
 
     @Test
     void testCreateUser_ValidUser() throws Exception {
-        var user = new UserCreationDto("Puszmen12", "puszmen12@gmail.com", "Srterydfgxc7657*hgf");
+        var user = new UserCreationDto("Puszmen123", "puszmen123@gmail.com", "Srterydfgxc7657*hgf");
 
         mockMvc.perform(
                 post("/api/auth/register")
