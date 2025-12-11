@@ -1,13 +1,12 @@
-package com.flashcards.config;
+package com.flashcards.infrastructure.config;
 
-import java.util.Locale;
-
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
 
-import jakarta.annotation.PostConstruct;
+import java.util.Locale;
 
 @Configuration
 public class LocaleResolverConfig {
@@ -23,5 +22,4 @@ public class LocaleResolverConfig {
         resolver.setDefaultLocale(Locale.ENGLISH);
         return resolver;
     }
-
 }
