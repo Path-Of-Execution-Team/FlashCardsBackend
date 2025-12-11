@@ -1,5 +1,6 @@
 package com.flashcards.infrastructure.security;
 
+import org.springframework.http.HttpMethod;
 import com.flashcards.application.service.CustomUserDetailsService;
 import com.flashcards.infrastructure.persistence.UserRepository;
 import org.springframework.context.annotation.Bean;
