@@ -36,13 +36,27 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/").permitAll()
-                        .requestMatchers("/api/auth/").permitAll()
+                        // CORS preflight – lepiej od razu na wszystkie ścieżki
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // endpointy auth – logowanie / rejestracja itd.
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // 🔥 K8s health-checki – to jest kluczowe
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/info",
+                                "/actuator/prometheus"
+                        ).permitAll()
+
+                        // reszta wymaga JWT
                         .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
