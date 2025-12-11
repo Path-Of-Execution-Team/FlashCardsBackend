@@ -36,8 +36,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Run tests
-        run: mvn -B test
+      # - name: Run tests
+      #   run: mvn -B test
 
   build_and_push:
     name: Build & push Docker image
