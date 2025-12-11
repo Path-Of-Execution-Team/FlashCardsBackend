@@ -130,6 +130,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
+            export KUBECONFIG=/home/ubuntu/.kube/config
             set -e
             IMAGE="ghcr.io/${{ steps.vars.outputs.image_name }}:${{ steps.vars.outputs.latest }}"
             NAMESPACE="${{ steps.vars.outputs.namespace }}"
