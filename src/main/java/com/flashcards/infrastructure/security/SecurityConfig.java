@@ -1,5 +1,6 @@
 package com.flashcards.infrastructure.security;
 
+import org.springframework.http.HttpMethod;
 import com.flashcards.application.service.CustomUserDetailsService;
 import com.flashcards.infrastructure.persistence.UserRepository;
 import org.springframework.context.annotation.Bean;
@@ -33,15 +34,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-            .csrf(AbstractHttpConfigurer::disable)
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/hello", "/api/auth/**", "/swagger-ui/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> {})
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authorizeHttpRequests(auth -> auth
+                        // CORS preflight – lepiej od razu na wszystkie ścieżki
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // endpointy auth – logowanie / rejestracja itd.
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // 🔥 K8s health-checki – to jest kluczowe
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/info",
+                                "/actuator/prometheus"
+                        ).permitAll()
+
+                        // reszta wymaga JWT
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
     }
 
     @Bean
