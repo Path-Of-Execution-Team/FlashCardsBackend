@@ -19,6 +19,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -91,10 +92,17 @@ public class GlobalExceptionHandler {
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleResourceNotFound(Exception ex, HttpServletRequest req) {
+        log.error("Resource not found", ex);
+        return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", ex.getMessage(), req);
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleAny(Exception ex, HttpServletRequest req) {
         log.error("Unhandled exception", ex);
-        return build(HttpStatus.NOT_FOUND, "NOT_FOUND", "Something went wrong", req);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Something went wrong", req);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String code, String message, HttpServletRequest req) {
