@@ -39,7 +39,15 @@ public class SecurityConfig {
             })
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/").permitAll()
-                .requestMatchers("/hello", "/api/auth/**", "/swagger-ui/**").permitAll()
+                .requestMatchers(
+                    "/hello",
+                    "/api/auth/**",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/actuator/health",
+                    "/actuator/info",
+                    "/actuator/prometheus"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
