@@ -13,6 +13,14 @@ on:
           - auto
           - dev
           - prod
+      run_sonar:
+        description: "Run SonarCloud analysis"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 env:
   REGISTRY: ghcr.io
@@ -21,10 +29,15 @@ jobs:
   test:
     name: Run backend tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -43,6 +56,16 @@ jobs:
       - name: Run tests
         #run: mvn -B test
         run: echo Temporary
+
+      - name: SonarCloud analysis
+        if: github.event_name == 'pull_request' || github.event.inputs.run_sonar == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B -DskipTests verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
 
   build_and_push:
     name: Build & push Docker image
