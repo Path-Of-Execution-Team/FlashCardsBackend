@@ -39,3 +39,4 @@ jobs:
           mvn -B -DskipTests verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
           -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
