@@ -54,8 +54,7 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Run tests
-        #run: mvn -B test
-        run: echo Temporary
+        run: mvn -B test
 
       - name: SonarCloud analysis
         if: github.event_name == 'pull_request' || github.event.inputs.run_sonar == 'true'
@@ -66,6 +65,7 @@ jobs:
           mvn -B -DskipTests verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
           -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
   build_and_push:
     name: Build & push Docker image
