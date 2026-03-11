@@ -1,10 +1,18 @@
 name: Backend CI (tests + docker image + deploy)
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Deployment target environment"
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - dev
+          - prod
 
 env:
   REGISTRY: ghcr.io
@@ -49,6 +57,7 @@ jobs:
       image_name: ${{ steps.vars.outputs.image_name }}
       tag: ${{ steps.vars.outputs.tag }}
       namespace: ${{ steps.vars.outputs.namespace }}
+      deploy_environment: ${{ steps.vars.outputs.deploy_environment }}
 
     steps:
       - name: Checkout repo
@@ -63,24 +72,41 @@ jobs:
 
       - name: Set image vars
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DEPLOY_TARGET: ${{ github.event.inputs.deploy_target }}
+          SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+          TARGET_BRANCH: ${{ github.base_ref }}
         run: |
           OWNER=${GITHUB_REPOSITORY_OWNER,,}
-          BRANCH=${GITHUB_REF_NAME}
           SHA=${GITHUB_SHA::7}
+          DEPLOY_TARGET=${INPUT_DEPLOY_TARGET:-auto}
 
-          if [ "$BRANCH" = "main" ]; then
+          if [ "$DEPLOY_TARGET" = "prod" ]; then
+            DEPLOY_ENVIRONMENT=prod
+          elif [ "$DEPLOY_TARGET" = "dev" ]; then
+            DEPLOY_ENVIRONMENT=dev
+          elif [ "$EVENT_NAME" = "pull_request" ] && [ "$TARGET_BRANCH" = "main" ]; then
+            DEPLOY_ENVIRONMENT=prod
+          elif [ "$SOURCE_BRANCH" = "main" ]; then
+            DEPLOY_ENVIRONMENT=prod
+          else
+            DEPLOY_ENVIRONMENT=dev
+          fi
+
+          if [ "$DEPLOY_ENVIRONMENT" = "prod" ]; then
             IMAGE_NAME=${OWNER}/flashcards-backend
-            NAMESPACE=flashcards
           else
             IMAGE_NAME=${OWNER}/flashcards-backend-dev
-            NAMESPACE=flashcards-dev
           fi
+          NAMESPACE=moomento
 
           TAG=sha-${SHA}
 
           echo image_name=${IMAGE_NAME} >> $GITHUB_OUTPUT
           echo tag=${TAG} >> $GITHUB_OUTPUT
           echo namespace=${NAMESPACE} >> $GITHUB_OUTPUT
+          echo deploy_environment=${DEPLOY_ENVIRONMENT} >> $GITHUB_OUTPUT
 
       - name: Build & push Docker image
         uses: docker/build-push-action@v5
@@ -95,7 +121,8 @@ jobs:
     name: Deploy to Kubernetes
     needs: build_and_push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    environment: ${{ needs.build_and_push.outputs.deploy_environment }}
 
     steps:
       - name: Deploy backend via SSH

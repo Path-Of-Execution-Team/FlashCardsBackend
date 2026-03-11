@@ -12,8 +12,9 @@ RUN --mount=type=cache,target=/root/.m2 \
 # ---- Run ----
 FROM --platform=$TARGETPLATFORM eclipse-temurin:21-jre
 WORKDIR /app
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
-
-COPY --from=build /workspace/target/*.jar /app/app.jar
+RUN useradd -u 1001 appuser
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
+COPY --from=build /workspace/target/app.jar /app/app.jar
+USER appuser
 EXPOSE 8080
-ENTRYPOINT ["/bin/sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

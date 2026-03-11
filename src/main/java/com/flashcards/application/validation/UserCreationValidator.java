@@ -1,6 +1,7 @@
 package com.flashcards.application.validation;
 
 import com.flashcards.application.dto.UserCreationDto;
+import com.flashcards.infrastructure.config.PasswordProperties;
 import com.flashcards.infrastructure.persistence.UserRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -15,10 +16,12 @@ public class UserCreationValidator implements ConstraintValidator<ValidUserCreat
 
     private final UserRepository userRepository;
     private final MessageSource messageSource;
+    private final PasswordProperties passwordProperties;
 
-    public UserCreationValidator(UserRepository userRepository, MessageSource messageSource) {
+    public UserCreationValidator(UserRepository userRepository, MessageSource messageSource, PasswordProperties passwordProperties) {
         this.userRepository = userRepository;
         this.messageSource = messageSource;
+        this.passwordProperties = passwordProperties;
     }
 
     @Override
@@ -52,9 +55,11 @@ public class UserCreationValidator implements ConstraintValidator<ValidUserCreat
     private boolean strongPassword(String password) {
 
         if (password == null) return false;
+        int min = passwordProperties.minLength();
+        int max = passwordProperties.maxLength();
         String specialChars = "!@#$%^&*()-=_+{};:'|/?.<>,";
-        return password.length() >= 8
-            && password.length() <= 64
+        return password.length() >= min
+            && password.length() <= max
             && password.chars().anyMatch(Character::isDigit)
             && password.chars().anyMatch(Character::isLowerCase)
             && password.chars().anyMatch(Character::isUpperCase)
