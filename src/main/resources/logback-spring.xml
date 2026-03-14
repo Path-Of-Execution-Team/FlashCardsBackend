@@ -8,7 +8,7 @@
     <springProperty
             scope="context"
             name="APP_NAME"
-            source="spring.application.name"
+            source="APP_NAME"
             defaultValue="spring-boot-app"/>
     <springProperty
             scope="context"
