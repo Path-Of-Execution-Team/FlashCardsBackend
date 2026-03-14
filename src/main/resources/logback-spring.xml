@@ -10,6 +10,26 @@
             name="APP_NAME"
             source="spring.application.name"
             defaultValue="spring-boot-app"/>
+    <springProperty
+            scope="context"
+            name="APP_ENV"
+            source="SPRING_PROFILES_ACTIVE"
+            defaultValue="default"/>
+    <springProperty
+            scope="context"
+            name="POD_NAMESPACE"
+            source="POD_NAMESPACE"
+            defaultValue="unknown"/>
+    <springProperty
+            scope="context"
+            name="POD_NAME"
+            source="POD_NAME"
+            defaultValue="unknown"/>
+    <springProperty
+            scope="context"
+            name="NODE_NAME"
+            source="NODE_NAME"
+            defaultValue="unknown"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -22,8 +42,13 @@
             <url>${LOKI_URL}</url>
         </http>
         <labels>
-            app   = ${APP_NAME}
-            level = %level
+            app          = ${APP_NAME}
+            service_name = ${APP_NAME}
+            level        = %level
+            env          = ${APP_ENV}
+            namespace    = ${POD_NAMESPACE}
+            pod          = ${POD_NAME}
+            node         = ${NODE_NAME}
         </labels>
         <message>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
