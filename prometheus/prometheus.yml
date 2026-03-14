@@ -1,8 +1,23 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: "spring-boot-app"
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "flashcards-frontend"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["frontend:3000"]
+
+  - job_name: "flashcards-backend"
     metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ["host.docker.internal:8080"]
+      - targets: ["backend:8080"]
+
+  - job_name: "flashcards-hosted"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["hosted:8081"]
