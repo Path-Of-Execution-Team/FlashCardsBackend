@@ -1,0 +1,17 @@
+target
+.git
+.github
+.idea
+.vscode
+.mvn/wrapper/maven-wrapper.jar
+mvnw
+mvnw.cmd
+*.md
+.editorconfig
+.gitattributes
+.gitignore
+grafana
+loki
+prometheus
+promtail
+*.log
