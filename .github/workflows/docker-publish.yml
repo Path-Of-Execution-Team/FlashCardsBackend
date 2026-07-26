@@ -7,6 +7,16 @@ on:
     branches: [main, develop]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [develop, production]
+      source_ref:
+        description: "Branch, tag or SHA to build (default: branch selected in the workflow UI)"
+        required: false
+        type: string
 
 env:
   IMAGE_NAME: flashcards-backend
@@ -25,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_ref || github.ref }}
 
       # Matches <java.version>17</java.version> in pom.xml and the JRE in the
       # runtime image.
@@ -47,8 +59,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_tag: ${{ steps.imageref.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_ref || github.ref }}
 
       - uses: docker/setup-buildx-action@v3
 
@@ -58,6 +74,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - id: imageref
+        name: Resolve immutable image tag
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            tag="pr-${{ github.event.pull_request.number }}-sha-${short_sha}"
+          else
+            tag="sha-${short_sha}"
+          fi
+          {
+            echo "tag=$tag"
+            echo "short_sha=$short_sha"
+          } >> "$GITHUB_OUTPUT"
+
       # Only immutable tags are produced. `latest` is deliberately disabled -
       # the cluster pins exact tags (INFRASTRUCTURE.md rule 11).
       - id: meta
@@ -66,8 +97,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
-            type=sha,prefix=sha-,format=short,enable=${{ github.event_name != 'pull_request' }}
-            type=sha,prefix=pr-${{ github.event.pull_request.number }}-sha-,format=short,enable=${{ github.event_name == 'pull_request' }}
+            type=raw,value=${{ steps.imageref.outputs.tag }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
@@ -126,7 +156,7 @@ jobs:
     needs: publish
     # Tag builds are excluded: a semver release is rolled out deliberately via
     # the Deploy workflow's tag override, not automatically.
-    if: (github.event_name == 'push' && github.ref_type == 'branch') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    if: (github.event_name == 'push' && github.ref_type == 'branch') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch to FlashCards
@@ -136,8 +166,12 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           BASE_REF: ${{ github.base_ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          SHA: ${{ github.sha }}
+          IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          INPUT_SOURCE_REF: ${{ github.event.inputs.source_ref }}
         run: |
+          tag="${IMAGE_TAG}"
+          source_ref="${INPUT_SOURCE_REF:-$REF_NAME}"
           case "${EVENT_NAME}" in
             pull_request)
               case "${BASE_REF}" in
@@ -147,7 +181,7 @@ jobs:
                   exit 0
                   ;;
               esac
-              tag="pr-${PR_NUMBER}-sha-$(printf '%s' "${SHA}" | cut -c1-7)"
+              source_ref="${BASE_REF}"
               source_event=pull_request
               ;;
             push)
@@ -159,8 +193,15 @@ jobs:
                   exit 0
                   ;;
               esac
-              tag="sha-$(printf '%s' "${SHA}" | cut -c1-7)"
+              source_ref="${REF_NAME}"
               source_event=push
+              ;;
+            workflow_dispatch)
+              case "${INPUT_ENVIRONMENT}" in
+                production|develop) environment="${INPUT_ENVIRONMENT}" ;;
+                *) echo "::error::environment must be production or develop"; exit 1 ;;
+              esac
+              source_event=workflow_dispatch
               ;;
             *)
               echo "::notice::Event ${EVENT_NAME} does not trigger deployment."
@@ -185,6 +226,7 @@ jobs:
               "tag": "${tag}",
               "environment": "${environment}",
               "source_event": "${source_event}",
+              "source_ref": "${source_ref}",
               "pr_number": "${PR_NUMBER}"
             }
           }
