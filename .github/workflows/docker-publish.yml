@@ -1,6 +1,8 @@
 name: Build and publish image
 
 on:
+  pull_request:
+    branches: [develop]
   push:
     branches: [main, develop]
     tags: ["v*"]
@@ -40,6 +42,7 @@ jobs:
   publish:
     name: Build and push to GHCR
     needs: test
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,7 +66,8 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
-            type=sha,prefix=sha-,format=short
+            type=sha,prefix=sha-,format=short,enable=${{ github.event_name != 'pull_request' }}
+            type=sha,prefix=pr-${{ github.event.pull_request.number }}-sha-,format=short,enable=${{ github.event_name == 'pull_request' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
@@ -122,20 +126,44 @@ jobs:
     needs: publish
     # Tag builds are excluded: a semver release is rolled out deliberately via
     # the Deploy workflow's tag override, not automatically.
-    if: github.ref_type == 'branch'
+    if: (github.event_name == 'push' && github.ref_type == 'branch') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch to FlashCards
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           SHA: ${{ github.sha }}
         run: |
-          case "${REF_NAME}" in
-            main)    environment=production ;;
-            develop) environment=develop ;;
+          case "${EVENT_NAME}" in
+            pull_request)
+              case "${BASE_REF}" in
+                develop) environment=develop ;;
+                *)
+                  echo "::notice::PR base ${BASE_REF} maps to no preview environment - nothing to deploy."
+                  exit 0
+                  ;;
+              esac
+              tag="pr-${PR_NUMBER}-sha-$(printf '%s' "${SHA}" | cut -c1-7)"
+              source_event=pull_request
+              ;;
+            push)
+              case "${REF_NAME}" in
+                main)    environment=production ;;
+                develop) environment=develop ;;
+                *)
+                  echo "::notice::Branch ${REF_NAME} maps to no environment - nothing to deploy."
+                  exit 0
+                  ;;
+              esac
+              tag="sha-$(printf '%s' "${SHA}" | cut -c1-7)"
+              source_event=push
+              ;;
             *)
-              echo "::notice::Branch ${REF_NAME} maps to no environment - nothing to deploy."
+              echo "::notice::Event ${EVENT_NAME} does not trigger deployment."
               exit 0
               ;;
           esac
@@ -145,9 +173,6 @@ jobs:
             exit 1
           fi
 
-          # Must match docker/metadata-action's type=sha,format=short output.
-          tag="sha-$(printf '%s' "${SHA}" | cut -c1-7)"
-
           gh api --method POST \
             -H "Accept: application/vnd.github+json" \
             repos/Path-Of-Execution-Team/FlashCards/dispatches \
@@ -156,8 +181,11 @@ jobs:
             "event_type": "image-published",
             "client_payload": {
               "service": "${SERVICE}",
+              "deploy_services": "${SERVICE}",
               "tag": "${tag}",
-              "environment": "${environment}"
+              "environment": "${environment}",
+              "source_event": "${source_event}",
+              "pr_number": "${PR_NUMBER}"
             }
           }
           JSON
