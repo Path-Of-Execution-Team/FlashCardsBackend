@@ -1,0 +1,235 @@
+name: Build and publish image
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [develop, production]
+      source_ref:
+        description: "Branch, tag or SHA to build (default: branch selected in the workflow UI)"
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME: flashcards-backend
+  # Key the FlashCards deploy workflow matches on. Not the same string as
+  # IMAGE_NAME for the frontend, so it is spelled out separately everywhere.
+  SERVICE: backend
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Gates the push: no image is published from a red build.
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_ref || github.ref }}
+
+      # Matches <java.version>17</java.version> in pom.xml and the JRE in the
+      # runtime image.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run tests
+        run: mvn -B -ntp test
+        env:
+          SPRING_DOCKER_COMPOSE_ENABLED: "false"
+
+  publish:
+    name: Build and push to GHCR
+    needs: test
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.imageref.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_ref || github.ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: imageref
+        name: Resolve immutable image tag
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            tag="pr-${{ github.event.pull_request.number }}-sha-${short_sha}"
+          else
+            tag="sha-${short_sha}"
+          fi
+          {
+            echo "tag=$tag"
+            echo "short_sha=$short_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      # Only immutable tags are produced. `latest` is deliberately disabled -
+      # the cluster pins exact tags (INFRASTRUCTURE.md rule 11).
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ steps.imageref.outputs.tag }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # The target node is linux/amd64; skipping other platforms avoids a
+          # slow QEMU cross-build.
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Publish summary
+        run: |
+          {
+            echo "### Published"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo "digest: ${{ steps.build.outputs.digest }}"
+            echo '```'
+            echo
+            echo "The \`Trigger deployment\` job below rolls this out. To do it"
+            echo "by hand from the FlashCards repository instead:"
+            echo
+            echo '```sh'
+            echo "cd k8s/overlays/develop   # or overlays/production"
+            echo "kustomize edit set image ${{ env.IMAGE_NAME }}=*:sha-$(git rev-parse --short HEAD)"
+            echo '```'
+            echo
+            echo "then push, or run the \`Deploy\` workflow with the tag override."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  #  Tells the FlashCards root repository that a new image exists so it can
+  #  render the manifests and roll the matching cluster:
+  #
+  #    develop -> 57.128.251.9  (namespace moomento-dev)
+  #    main    -> 57.129.66.163 (namespace moomento)
+  #
+  #  Needs a repository secret DEPLOY_DISPATCH_TOKEN - a fine-grained PAT scoped
+  #  to Path-Of-Execution-Team/FlashCards with Contents: read and write, because
+  #  the repository_dispatch endpoint is gated on Contents: write. GITHUB_TOKEN
+  #  cannot be used: it is scoped to this repository only.
+  #
+  #  Kept as a separate job on purpose. If the token is missing or expired the
+  #  failure shows up as its own red check while `publish` stays green, so it is
+  #  obvious that the image was pushed and only the rollout trigger failed.
+  # ---------------------------------------------------------------------------
+  notify:
+    name: Trigger deployment
+    needs: publish
+    # Tag builds are excluded: a semver release is rolled out deliberately via
+    # the Deploy workflow's tag override, not automatically.
+    if: (github.event_name == 'push' && github.ref_type == 'branch') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to FlashCards
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          INPUT_SOURCE_REF: ${{ github.event.inputs.source_ref }}
+        run: |
+          tag="${IMAGE_TAG}"
+          source_ref="${INPUT_SOURCE_REF:-$REF_NAME}"
+          case "${EVENT_NAME}" in
+            pull_request)
+              case "${BASE_REF}" in
+                develop) environment=develop ;;
+                *)
+                  echo "::notice::PR base ${BASE_REF} maps to no preview environment - nothing to deploy."
+                  exit 0
+                  ;;
+              esac
+              source_ref="${BASE_REF}"
+              source_event=pull_request
+              ;;
+            push)
+              case "${REF_NAME}" in
+                main)    environment=production ;;
+                develop) environment=develop ;;
+                *)
+                  echo "::notice::Branch ${REF_NAME} maps to no environment - nothing to deploy."
+                  exit 0
+                  ;;
+              esac
+              source_ref="${REF_NAME}"
+              source_event=push
+              ;;
+            workflow_dispatch)
+              case "${INPUT_ENVIRONMENT}" in
+                production|develop) environment="${INPUT_ENVIRONMENT}" ;;
+                *) echo "::error::environment must be production or develop"; exit 1 ;;
+              esac
+              source_event=workflow_dispatch
+              ;;
+            *)
+              echo "::notice::Event ${EVENT_NAME} does not trigger deployment."
+              exit 0
+              ;;
+          esac
+
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::DEPLOY_DISPATCH_TOKEN is not set. The image was published but no deployment was triggered."
+            exit 1
+          fi
+
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            repos/Path-Of-Execution-Team/FlashCards/dispatches \
+            --input - <<JSON
+          {
+            "event_type": "image-published",
+            "client_payload": {
+              "service": "${SERVICE}",
+              "deploy_services": "${SERVICE}",
+              "tag": "${tag}",
+              "environment": "${environment}",
+              "source_event": "${source_event}",
+              "source_ref": "${source_ref}",
+              "pr_number": "${PR_NUMBER}"
+            }
+          }
+          JSON
+
+          echo "Dispatched ${SERVICE}:${tag} -> ${environment}" >> "$GITHUB_STEP_SUMMARY"
