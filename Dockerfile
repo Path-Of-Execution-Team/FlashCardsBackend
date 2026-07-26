@@ -20,8 +20,7 @@ RUN mvn -B -ntp -DskipTests package
 # this project has no SNAPSHOT dependencies - pre-creating all four keeps the
 # COPY instructions below from failing on a missing path.
 RUN set -eu; \
-    jar="$(find target -maxdepth 1 -name '*.jar' ! -name '*-sources.jar' ! -name 'original-*' | head -n 1)"; \
-    java -Djarmode=layertools -jar "$jar" extract --destination /build/layers; \
+    java -Djarmode=layertools -jar target/app.jar extract --destination /build/layers; \
     mkdir -p /build/layers/dependencies \
              /build/layers/spring-boot-loader \
              /build/layers/snapshot-dependencies \
